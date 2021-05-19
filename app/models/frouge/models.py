@@ -9,6 +9,8 @@ from stable_baselines.common.policies import ActorCriticPolicy
 from stable_baselines.common.distributions import CategoricalProbabilityDistribution
 
 ACTIONS = 36
+MAX_BOARD_SIZE = 120
+BOARD_CELL_DIM_SIZE = 17
 FEATURE_SIZE = 64
 
 
@@ -22,7 +24,7 @@ class CustomPolicy(ActorCriticPolicy):
 
             extracted_features = resnet_extractor(obs, **kwargs)
 
-            self._policy = policy_head(extracted_features, legal_actions[:,:,0,0])
+            self._policy = policy_head(extracted_features, legal_actions)
             self._value_fn, self.q_value = value_head(extracted_features)
             self._proba_distribution  = CategoricalProbabilityDistribution(self._policy)
 
@@ -50,9 +52,7 @@ def split_input(obs, split):
 
 def value_head(y):
 
-    y = Flatten()(y)
-    y = dense(y,FEATURE_SIZE)
-
+    y = dense(y, FEATURE_SIZE)
     vf = dense(y, 1, batch_norm = False, activation = 'tanh', name='vf')
     q = dense(y, ACTIONS, batch_norm = False, activation = 'tanh', name='q')
     return vf, q
@@ -60,9 +60,7 @@ def value_head(y):
 
 def policy_head(y, legal_actions):
 
-    y = Flatten()(y)
-    y = dense(y,FEATURE_SIZE)
-
+    y = dense(y, FEATURE_SIZE)
     policy = dense(y, ACTIONS, batch_norm = False, activation = None, name='pi')
     
     mask = Lambda(lambda x: (1 - x) * -1e8)(legal_actions)   
@@ -73,8 +71,17 @@ def policy_head(y, legal_actions):
 
 def resnet_extractor(y, **kwargs):
 
-    y = convolutional(y, int(FEATURE_SIZE/2), 3, batch_norm = True, activation=None)
-    y = residual(y, int(FEATURE_SIZE/2), 9)
+    board, cards = split_input(y, int(y.shape[1])-(MAX_BOARD_SIZE*3*BOARD_CELL_DIM_SIZE))
+    board = tf.reshape(board, [ -1, MAX_BOARD_SIZE, 3, BOARD_CELL_DIM_SIZE ])
+
+    board = Conv2D(int(FEATURE_SIZE/2), kernel_size=9, strides=3, padding="same")(board)
+    board = Conv2D(FEATURE_SIZE, kernel_size=9, strides=3, padding="same")(board)
+    board = Flatten()(board)
+
+    y = tf.concat([board, cards],1)
+    y = dense(y,FEATURE_SIZE)
+
+    y = residual(y, FEATURE_SIZE)
 
     return y
 
@@ -88,12 +95,11 @@ def convolutional(y, filters, kernel_size, batch_norm = False, activation = 'rel
     return y
 
 
-def residual(y, filters, kernel_size):
+def residual(y, filters):
     shortcut = y
 
-    y = convolutional(y,filters, kernel_size=kernel_size)
-
-    y = convolutional(y,filters, kernel_size=kernel_size, activation=None)
+    y = dense(y, filters)
+    y = dense(y, filters, activation = None)
     y = Add()([shortcut, y])
     y = Activation('relu')(y)
 
