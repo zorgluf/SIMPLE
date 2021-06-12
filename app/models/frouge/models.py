@@ -46,8 +46,10 @@ class CustomPolicy(ActorCriticPolicy):
         return self.sess.run(self.value_flat, {self.obs_ph: obs})
 
 
-def split_input(obs, split):
-    return   obs[:,:-split], obs[:,-split:]
+def split_input(processed_obs, split):
+    obs = processed_obs[...,:-split]
+    legal_actions = K.mean(processed_obs[...,-split:], axis = (1,2))
+    return  obs, legal_actions 
 
 
 def value_head(y):
