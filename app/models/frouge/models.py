@@ -88,8 +88,8 @@ def resnet_extractor(y, **kwargs):
     return y
 
 
-def convolutional(y, filters, kernel_size, batch_norm = False, activation = 'relu'):
-    y = Conv2D(filters, kernel_size=kernel_size, strides=1, padding='same')(y)
+def convolutional(y, filters, kernel_size, batch_norm = False, activation = 'relu', strides = (1,1)):
+    y = Conv2D(filters, kernel_size=kernel_size, strides=strides, padding='same')(y)
     if batch_norm:
         y = BatchNormalization(momentum = 0.9)(y)
     if activation:
@@ -103,6 +103,7 @@ def residual(y, filters):
     y = dense(y, filters)
     y = dense(y, filters, activation = None)
     y = Add()([shortcut, y])
+
     y = Activation('relu')(y)
 
     return y
