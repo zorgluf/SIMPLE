@@ -357,7 +357,7 @@ class Board():
             if start_cell == CD:
                 n = max(n,5)
             if start_cell == CSU:
-                n = max(n,5)
+                n = max(n,4)
             if start_cell == CC:
                 n = min(n,5)
             if self.get_cell(player.c_pos(c_type).col+n,0) == CC:
