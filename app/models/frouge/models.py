@@ -25,7 +25,6 @@ class CustomPolicy(ActorCriticPolicy):
             extracted_features = resnet_extractor(obs, **kwargs)
 
             self._policy = policy_head(extracted_features, legal_actions)
-            self._policy = policy_head(extracted_features, legal_actions)
             self._value_fn, self.q_value = value_head(extracted_features)
             self._proba_distribution  = CategoricalProbabilityDistribution(self._policy)
 
@@ -49,7 +48,7 @@ class CustomPolicy(ActorCriticPolicy):
 
 def split_input(processed_obs, split):
     obs = processed_obs[...,:-split]
-    legal_actions = K.mean(processed_obs[...,-split:], axis = (1,2))
+    legal_actions = processed_obs[...,-split:]
     return  obs, legal_actions 
 
 
