@@ -210,6 +210,17 @@ class Player():
         a.array[self.r_position.col][self.r_position.row][0] = str(self.n) + "r"
         a.array[self.s_position.col][self.s_position.row][0] = str(self.n) + "s"
         return a
+    
+    def nb_penalties(self):
+        #get nb of penalties card in playable cards
+        p = 0
+        p += self.r_deck.nb_penalties()
+        p += self.s_deck.nb_penalties()
+        p += self.r_discard.nb_penalties()
+        p += self.s_discard.nb_penalties()
+        p += self.r_hand.nb_penalties()
+        p += self.s_hand.nb_penalties()
+        return p
 
 
 class Position():
@@ -269,6 +280,15 @@ class Deck():
         for card in self.cards:
             array[ALL_CARDS.index(card)] += 0.1
         return array
+    
+    def sum_values(self):
+        s = 0
+        for card in self.cards:
+            s += card.value
+        return s
+    
+    def nb_penalties(self):
+        return len([ c for c in self.cards if "penalty" in c.name ])
 
 class Card():
     def __init__(self, name, value):

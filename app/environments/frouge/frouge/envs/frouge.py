@@ -137,17 +137,25 @@ class FlammeRougeEnv(gym.Env):
 
 
     def score_game(self):
-        reward = [0.0] * self.n_players
-        scores = [ (max((p.r_position.col*3-p.r_position.row),(p.s_position.col*3-p.s_position.row)),p) for p in self.board.players]
-        scores.sort(key=lambda item: item[0])
-        for i, s in enumerate(scores):
-            if i < self.n_players - 1:
-                reward[s[1].n - 1] = -1.0/(self.n_players - 1)
-            else:
-                reward[s[1].n - 1] = 1.0
-        
 
-        return reward
+        #get progressions
+        positions = [ p.r_position.col + p.s_position.col for p in self.board.players]
+        #get card values spends
+        spent = [ - p.s_played.sum_values() - p.r_played.sum_values() for p in self.board.players ]
+        #get penalty cards number
+        penalties = [ - p.nb_penalties() for p in self.board.players ]
+
+        scores = [ sum(x) for x in zip(positions, spent, penalties) ]
+
+        #is the winner ?
+        if self.done:
+            #get the most advanced user
+            pos = [ max((p.r_position.col*3-p.r_position.row),(p.s_position.col*3-p.s_position.row)) for p in self.board.players]
+            #give reward for winner
+            scores[np.argmax(pos)] += 1000
+
+        logger.debug(f"Rewards: {scores}")
+        return scores
 
 
     @property
@@ -218,9 +226,11 @@ class FlammeRougeEnv(gym.Env):
 
 
     def step(self, action):
-        
-        reward = [0] * self.n_players
+        #TODO : change phase 1 : choose 1st card, 
+        # phase 2 = choose 2nd card
+        # TODO : adapt render accordingly 
         done = False
+        rewards = [0] * self.n_players
 
         # check move legality
         if self.legal_actions[action] == 0:
@@ -274,19 +284,17 @@ class FlammeRougeEnv(gym.Env):
                         self.render_map()
                         if self.last_turn:
                             #End of game
-                            reward = self.score_game()
                             done = True
+                            self.done = done
                             self.current_player_num = 0
                         else:
                             self.finish_turn()
+                        rewards = self.score_game()
 
             else:
                 raise Exception(f'Invalid phase: {self.phase}')
 
-
-        self.done = done
-
-        return self.observation, reward, done, {}
+        return self.observation, rewards, done, {}
 
     def finish_turn(self):
         #discard cards and draw new
@@ -343,6 +351,7 @@ class FlammeRougeEnv(gym.Env):
 
     def reset(self):
         # set_global_seeds(17)
+        random.seed()
         #pick a random board
         self.board = Board(random.choice(ALL_BOARDS))
         #reset players
@@ -429,7 +438,7 @@ class FlammeRougeEnv(gym.Env):
 
 
     def render(self, mode='human', close=False):
-
+        #TODO : add a web mode
         if close:
             return
         if mode == "human" and not self.done:
