@@ -401,7 +401,7 @@ class Board():
                 n = max(n,4)
             if start_cell == CC:
                 n = min(n,5)
-            if self.get_cell(player.c_pos(c_type).col+n,0) == CC:
+            if self.get_cell(player.c_pos(c_type).col+n,0) == CC or self.get_cell(player.c_pos(c_type).col+ int(n/2),0) == CC:
                 if n > 5:
                     n = 5
         self.set_cycl_to_pos(player_id, c_type, player.c_pos(c_type).col + n)

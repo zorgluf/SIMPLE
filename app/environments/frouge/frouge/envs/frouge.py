@@ -32,6 +32,7 @@ class FlammeRougeEnv(gym.Env):
         
         self.n_players = 5
         self.board = None
+        self.penalty = list()
         
         card_types = len(ALL_CARDS)
         #action space = all possible rouleur and sprinter cards = card_types
@@ -226,9 +227,6 @@ class FlammeRougeEnv(gym.Env):
 
 
     def step(self, action):
-        #TODO : change phase 1 : choose 1st card, 
-        # phase 2 = choose 2nd card
-        # TODO : adapt render accordingly 
         done = False
         rewards = [0] * self.n_players
 
@@ -255,6 +253,7 @@ class FlammeRougeEnv(gym.Env):
 
                 if self.current_player_num == self.n_players:
                     self.draw_cards()
+                    self.render_map()
                     self.phase = 2
                     self.current_player_num = 0
 
@@ -290,6 +289,8 @@ class FlammeRougeEnv(gym.Env):
                         else:
                             self.finish_turn()
                         rewards = self.score_game()
+                else:
+                    self.render_map(first_turn=True)
 
             else:
                 raise Exception(f'Invalid phase: {self.phase}')
@@ -453,17 +454,14 @@ class FlammeRougeEnv(gym.Env):
                 logger.debug(f'\033[{PLAYER_COLOR_MAP[str(p.n)]}mPlayer {p.name}\'s {cyclist} hand\033[0m')
                 line = (" " * tab_size) + "".join([ c.name + ' (' + str(self.from_card_to_action(c)) + ')' + " "*len(c.name) for c in p.c_hand(cyclist).cards ])
                 logger.debug(f'{line}')
-
             elif self.phase == 1:
-                logger.debug(f'\033[{PLAYER_COLOR_MAP[str(p.n)]}mPlayer {p.name} to choose hand\033[0m')
-                logger.debug([index for index, value in enumerate(self.legal_actions) if value == 1])
+                logger.debug(f'\033[{PLAYER_COLOR_MAP[str(p.n)]}mPlayer {p.name} has to choose first hand to reveal\033[0m')
+                logger.debug(f"s({len(ALL_CARDS)}) r({len(ALL_CARDS)+1})")
             elif self.phase == 0:
-                logger.debug(f'\033[{PLAYER_COLOR_MAP[str(p.n)]}mPlayer {p.name} to place cyclist\033[0m')
-                logger.debug([index for index, value in enumerate(self.legal_actions) if value == 1])
-            #clear remaining lines
-            # for i in range(20):
-            #     logger.debug(' ' * MAX_BOARD_SIZE)
-            # logger.debug('\033[20A')
+                c_type = "s" if self.current_player.s_position.col == -1 else "r"
+                logger.debug(f'\033[{PLAYER_COLOR_MAP[str(p.n)]}mPlayer {p.name} has to place cyclist {c_type}\033[0m')
+                actions = [index for index, value in enumerate(self.legal_actions) if value == 1]
+                logger.debug(" ".join([ f"{a - len(ALL_CARDS) - 1}({a})" for a in actions]))
 
         if self.done:
             logger.debug(f'\n\nGAME OVER')
