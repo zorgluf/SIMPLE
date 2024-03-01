@@ -9,6 +9,7 @@ setup(
         'gym>=0.9.4,<=0.15.7',
         'numpy>=1.13.0',
         'opencv-python>=3.4.2.0',
+        'nicegui'
     ]
 )
 

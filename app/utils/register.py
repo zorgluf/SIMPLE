@@ -52,3 +52,10 @@ def get_network_arch(env_name):
     else:
         raise Exception(f'No model architectures found for {env_name}')
 
+def get_gui(env_name):
+    if env_name in ('frouge'):
+        from rouge.envs.frouge import Gui
+        return Gui
+    else:
+        raise Exception(f'No GUI found for {env_name}')
+
