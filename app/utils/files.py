@@ -1,5 +1,5 @@
 
-
+import logging as logger
 import os
 import sys
 import random
@@ -7,17 +7,13 @@ import csv
 import time
 import numpy as np
 
-from mpi4py import MPI
 
 from shutil import rmtree
-from stable_baselines.ppo1 import PPO1
-from stable_baselines.common.policies import MlpPolicy
+from sb3_contrib import MaskablePPO as PPO1
 
 from utils.register import get_network_arch
 
 import config
-
-from stable_baselines import logger
 
 
 def write_results(players, game, games, episode_length):
@@ -59,15 +55,9 @@ def load_model(env, name):
         cont = True
         while cont:
             try:
-                
-                rank = MPI.COMM_WORLD.Get_rank()
-                if rank == 0:
-                    ppo_model = PPO1(get_network_arch(env.name), env=env)
-                    logger.info(f'Saving base.zip PPO model...')
-                    ppo_model.save(os.path.join(config.MODELDIR, env.name, 'base.zip'))
-                else:
-
-                    ppo_model = PPO1.load(os.path.join(config.MODELDIR, env.name, 'base.zip'), env=env)
+                ppo_model = PPO1(get_network_arch(env.name), env=env)
+                logger.info(f'Saving base.zip PPO model...')
+                ppo_model.save(os.path.join(config.MODELDIR, env.name, 'base.zip'))
 
                 cont = False
             except IOError as e:
@@ -117,7 +107,7 @@ def get_model_stats(filename):
     return generation, timesteps, best_rules_based, best_reward
 
 
-def reset_logs(model_dir):
+def reset_logs():
     try:
         filelist = [ f for f in os.listdir(config.LOGDIR) if f not in ['.gitignore']]
         for f in filelist:

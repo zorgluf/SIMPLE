@@ -1,66 +1,51 @@
 # docker-compose exec app python3 train.py -r -e butterfly
 
 import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
-
-import tensorflow as tf
-tf.get_logger().setLevel('INFO')
-tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
-
 
 import argparse
 import time
 from shutil import copyfile
-from mpi4py import MPI
+import logging
 
-from stable_baselines.ppo1 import PPO1
-from stable_baselines.common.callbacks import EvalCallback
-
-from stable_baselines.common.vec_env import DummyVecEnv
-from stable_baselines.common import set_global_seeds
-from stable_baselines import logger
+from sb3_contrib import MaskablePPO as PPO1
+from sb3_contrib.common.maskable.callbacks import MaskableEvalCallback
+from stable_baselines3.common.utils import set_random_seed
+from stable_baselines3.common.logger import configure
 
 from utils.callbacks import SelfPlayCallback
 from utils.files import reset_logs, reset_models
-from utils.register import get_network_arch, get_environment
+from utils.register import get_environment
 from utils.selfplay import selfplay_wrapper
 
 import config
 
 def main(args):
 
-  rank = MPI.COMM_WORLD.Get_rank()
-
   model_dir = os.path.join(config.MODELDIR, args.env_name)
 
-  if rank == 0:
-    try:
-      os.makedirs(model_dir)
-    except:
-      pass
-    reset_logs(model_dir)
-    if args.reset:
-      reset_models(model_dir)
-    logger.configure(config.LOGDIR)
-  else:
-    logger.configure(format_strs=[])
+  try:
+    os.makedirs(model_dir)
+  except:
+    pass
+  reset_logs()
+  if args.reset:
+    reset_models(model_dir)
+  logger = configure(config.LOGDIR)
 
   if args.debug:
     logger.set_level(config.DEBUG)
+    logging.basicConfig(level=logging.DEBUG)
   else:
     time.sleep(5)
     logger.set_level(config.INFO)
 
-  workerseed = args.seed + 10000 * MPI.COMM_WORLD.Get_rank()
-  set_global_seeds(workerseed)
+  set_random_seed(args.seed)
 
   logger.info('\nSetting up the selfplay training environment opponents...')
   base_env = get_environment(args.env_name)
   env = selfplay_wrapper(base_env)(opponent_type = args.opponent_type, verbose = args.verbose)
-  env.seed(workerseed)
-
-  
-  CustomPolicy = get_network_arch(args.env_name)
+  env.seed(args.seed)
+  env.logger = logger
 
   params = {'gamma':args.gamma
     , 'timesteps_per_actorbatch':args.timesteps_per_actorbatch
@@ -101,8 +86,8 @@ def main(args):
   if args.rules:  
     logger.info('\nSetting up the evaluation environment against the rules-based agent...')
     # Evaluate against a 'rules' agent as well
-    eval_actual_callback = EvalCallback(
-      eval_env = selfplay_wrapper(base_env)(opponent_type = 'rules', verbose = args.verbose),
+    eval_actual_callback = MaskableEvalCallback(
+      eval_env = selfplay_wrapper(base_env)(opponent_type = 'rules', verbose = args.verbose, logger = logger),
       eval_freq=1,
       n_eval_episodes=args.n_eval_episodes,
       deterministic = args.best,

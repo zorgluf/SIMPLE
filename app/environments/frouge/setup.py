@@ -9,6 +9,8 @@ setup(
         'gym>=0.9.4,<=0.15.7',
         'numpy>=1.13.0',
         'opencv-python>=3.4.2.0',
+        'shimmy>=0.2.1',
+        'sb3-contrib==2.2.1'
     ]
 )
 

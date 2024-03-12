@@ -1,18 +1,15 @@
-
 import gym
 import numpy as np
 
 import random
+import logging as logger
 from functools import cmp_to_key
-
-import config
-
-from stable_baselines import logger
-from stable_baselines.common import set_global_seeds
+from typing import List
 
 from .classes import *
 
-
+N_PLAYERS = 5
+OBS_SIZE = MAX_BOARD_SIZE*3*(MAX_CODE + 2*N_PLAYERS) + len(ALL_CARDS) * N_PLAYERS + 2*len(ALL_CARDS) + len(ALL_CARDS) + 2 + MAX_START_SPACES
 
 PLAYER_COLOR_MAP = {
                 "1" : "91",
@@ -39,7 +36,7 @@ class FlammeRougeEnv(gym.Env):
         # + 2 choices of deck, + starting space choices
         self.action_space = gym.spaces.Discrete(card_types + 2 + MAX_START_SPACES)
         #observation space = board + current player played cards + current player discarded cards + other player played cards + current player hand (+action_space)
-        self.observation_space = gym.spaces.Box(0, 1, (MAX_BOARD_SIZE*3*(MAX_CODE + 2*self.n_players) + card_types * self.n_players + 2*card_types + self.action_space.n,))
+        self.observation_space = gym.spaces.Box(0, 1, (MAX_BOARD_SIZE*3*(MAX_CODE + 2*self.n_players) + card_types * self.n_players + 2*card_types,))
         self.verbose = verbose
 
         
@@ -75,32 +72,27 @@ class FlammeRougeEnv(gym.Env):
         #add player's hand
         hand = np.add(self.current_player.r_hand.array(),self.current_player.s_hand.array())
         obs = np.append(obs,hand,axis=0)
-        #pipe legal actions
-        actions = self.legal_actions
-        obs = np.append(obs,actions,axis=0)
 
         return obs
 
-    @property
-    def legal_actions(self):
-        legal_actions = np.zeros(self.action_space.n)
+    def action_masks(self) -> List[bool]:
+        legal_actions = np.full(self.action_space.n, False)
         if self.phase == 2:
             cyclist = self.current_player.hand_order[self.hand_number]
             for i in range(len(ALL_CARDS)):
                 if self.current_player.c_hand(cyclist).array()[i] > 0:
-                    legal_actions[i] = 1
+                    legal_actions[i] = True
 
         elif self.phase == 1:
-            legal_actions[len(ALL_CARDS):(len(ALL_CARDS)+2)] = 1
+            legal_actions[len(ALL_CARDS):(len(ALL_CARDS)+2)] = True
         elif self.phase == 0:
             for i in range(MAX_START_SPACES):
                 col = i // 3
                 row = i % 3
                 if self.board.get_cell(col, row) == CS and self.board.is_empty(col, row):
-                    legal_actions[len(ALL_CARDS) + 2 + i] = 1
+                    legal_actions[len(ALL_CARDS) + 2 + i] = True
         else:
             raise Exception(f'Invalid phase: {self.phase}')
-
 
         return legal_actions
 
@@ -231,8 +223,8 @@ class FlammeRougeEnv(gym.Env):
         rewards = [0] * self.n_players
 
         # check move legality
-        if self.legal_actions[action] == 0:
-            raise Exception(f'Illegal action {action} : Legal actions {self.legal_actions}')
+        if self.action_masks()[action] == False:
+            raise Exception(f'Illegal action {action} : Legal actions {self.action_masks()}')
         else:
             if self.phase == 0: # initial cyclist positioning (start with sprinter)
                 c_type, col, row = self.from_action_to_starting_position(action)
@@ -351,7 +343,7 @@ class FlammeRougeEnv(gym.Env):
                 player.s_hand.add(drawn)
 
     def reset(self):
-        # set_global_seeds(17)
+        
         random.seed()
         #pick a random board
         self.board = Board(random.choice(ALL_BOARDS))
@@ -460,7 +452,7 @@ class FlammeRougeEnv(gym.Env):
             elif self.phase == 0:
                 c_type = "s" if self.current_player.s_position.col == -1 else "r"
                 logger.debug(f'\033[{PLAYER_COLOR_MAP[str(p.n)]}mPlayer {p.name} has to place cyclist {c_type}\033[0m')
-                actions = [index for index, value in enumerate(self.legal_actions) if value == 1]
+                actions = [index for index, value in enumerate(self.action_masks()) if value == True]
                 logger.debug(" ".join([ f"{a - len(ALL_CARDS) - 1}({a})" for a in actions]))
 
         if self.done:

@@ -1,13 +1,13 @@
 import os
 import numpy as np
 import random
+import logging as logger
 
 from utils.files import load_model, load_all_models, get_best_model_name
 from utils.agents import Agent
 
 import config
 
-from stable_baselines import logger
 
 def selfplay_wrapper(env):
     class SelfPlayEnv(env):

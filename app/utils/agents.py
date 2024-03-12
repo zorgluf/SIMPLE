@@ -3,10 +3,11 @@ import numpy as np
 np.set_printoptions(threshold=sys.maxsize)
 import random
 import string
-
+import logging as logger
 import config
+import torch
 
-from stable_baselines import logger
+from sb3_contrib.common.maskable.utils import get_action_masks
 
 def sample_action(action_probs):
     action = np.random.choice(len(action_probs), p = action_probs)
@@ -17,9 +18,6 @@ def mask_actions(legal_actions, action_probs):
     masked_action_probs = np.multiply(legal_actions, action_probs)
     masked_action_probs = masked_action_probs / np.sum(masked_action_probs)
     return masked_action_probs
-
-
-
 
 
 class Agent():
@@ -38,24 +36,18 @@ class Agent():
       if self.name == 'rules':
         action_probs = np.array(env.rules_move())
         value = None
-      else:
-        action_probs = self.model.action_probability(env.observation)
-        value = self.model.policy_pi.value(np.array([env.observation]))[0]
-        logger.debug(f'Value {value:.2f}')
-
-      self.print_top_actions(action_probs)
-      
-      if mask_invalid_actions:
-        action_probs = mask_actions(env.legal_actions, action_probs)
-        logger.debug('Masked ->')
         self.print_top_actions(action_probs)
-        
-      action = np.argmax(action_probs)
-      logger.debug(f'Best action {action}')
-
-      if not choose_best_action:
-          action = sample_action(action_probs)
+        action = np.argmax(action_probs)
+        logger.debug(f'Best action {action}')
+        if not choose_best_action:
+          action = sample_action(env.legal_actions / sum(env.legal_actions))
           logger.debug(f'Sampled action {action} chosen')
+      else:
+        action_masks = get_action_masks(env)
+        action = self.model.predict(env.observation, deterministic = choose_best_action, action_masks = action_masks)[0]
+        value = self.model.policy.predict_values(torch.from_numpy(np.array([env.observation])))[0]
+        logger.debug(f'Value {float(value):.2f}')
+        logger.debug(f'Best action {action}')
 
       return action
 
