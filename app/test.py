@@ -1,11 +1,10 @@
 # docker-compose exec app python3 test.py -d -g 1 -a base base human -e butterfly 
 
-import os
-
+import logging
 import random
 import argparse
 
-from stable_baselines3.common import logger
+from stable_baselines3.common.logger import configure
 from stable_baselines3.common.utils import set_random_seed
 
 from utils.files import load_model, write_results
@@ -17,10 +16,11 @@ import config
 
 def main(args):
 
-  logger.configure(config.LOGDIR)
+  logger = configure(config.LOGDIR)
 
   if args.debug:
     logger.set_level(config.DEBUG)
+    logging.basicConfig(level=logging.DEBUG)
   else:
     logger.set_level(config.INFO)
     
@@ -118,7 +118,6 @@ def main(args):
       p.points = 0
 
   env.close()
-    
 
 
 def cli() -> None:
