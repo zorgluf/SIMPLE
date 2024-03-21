@@ -50,10 +50,10 @@ def main(args):
     elif agent == 'rules':
       agent_obj = Agent('rules')
     elif agent == 'base':
-      base_model = load_model(env, 'base.zip')
+      base_model = load_model(env, 'base.zip', args.device)
       agent_obj = Agent('base', base_model)   
     else:
-      ppo_model = load_model(env, f'{agent}.zip')
+      ppo_model = load_model(env, f'{agent}.zip', args.device)
       agent_obj = Agent(agent, ppo_model)
     agents.append(agent_obj)
     total_rewards[agent_obj.id] = 0
@@ -155,6 +155,9 @@ def cli() -> None:
             , help="Write results to a file?")
   parser.add_argument("--seed", "-s",  type = int, default = 17
             , help="Random seed")
+  
+  parser.add_argument("--device", "-dev",  type = str, default = "cpu"
+            , help="The device to use")
 
   # Extract args
   args = parser.parse_args()

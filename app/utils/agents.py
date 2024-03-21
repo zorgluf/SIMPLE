@@ -26,6 +26,7 @@ class Agent():
       self.id = self.name + '_' + ''.join(random.choice(string.ascii_lowercase) for x in range(5))
       self.model = model
       self.points = 0
+      self.device = model.device
 
   def print_top_actions(self, action_probs):
     top5_action_idx = np.argsort(-action_probs)[:5]
@@ -45,7 +46,7 @@ class Agent():
       else:
         action_masks = get_action_masks(env)
         action = self.model.predict(env.observation, deterministic = choose_best_action, action_masks = action_masks)[0]
-        value = self.model.policy.predict_values(torch.from_numpy(np.array([env.observation])))[0]
+        value = self.model.policy.predict_values(torch.from_numpy(np.array([env.observation])).to(self.device))[0]
         logger.debug(f'Value {float(value):.2f}')
         logger.debug(f'Best action {action}')
 

@@ -12,10 +12,11 @@ import config
 def selfplay_wrapper(env):
     class SelfPlayEnv(env):
         # wrapper over the normal single player env, but loads the best self play model
-        def __init__(self, opponent_type, verbose):
+        def __init__(self, opponent_type, verbose, device):
             super(SelfPlayEnv, self).__init__(verbose)
+            self.device = device
             self.opponent_type = opponent_type
-            self.opponent_models = load_all_models(self)
+            self.opponent_models = load_all_models(self, device)
             self.best_model_name = get_best_model_name(self.name)
 
         def setup_opponents(self):
@@ -25,7 +26,7 @@ def selfplay_wrapper(env):
                 # incremental load of new model
                 best_model_name = get_best_model_name(self.name)
                 if self.best_model_name != best_model_name:
-                    self.opponent_models.append(load_model(self, best_model_name ))
+                    self.opponent_models.append(load_model(self, best_model_name, self.device ))
                     self.best_model_name = best_model_name
 
                 if self.opponent_type == 'random':

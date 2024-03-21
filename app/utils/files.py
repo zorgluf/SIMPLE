@@ -37,7 +37,7 @@ def write_results(players, game, games, episode_length):
         writer.writerow(out)
 
 
-def load_model(env, name):
+def load_model(env, name, device):
 
     filename = os.path.join(config.MODELDIR, env.name, name)
     if os.path.exists(filename):
@@ -45,7 +45,7 @@ def load_model(env, name):
         cont = True
         while cont:
             try:
-                ppo_model = PPO1.load(filename, env=env)
+                ppo_model = PPO1.load(filename, env=env, device=device)
                 cont = False
             except Exception as e:
                 time.sleep(5)
@@ -72,12 +72,12 @@ def load_model(env, name):
     return ppo_model
 
 
-def load_all_models(env):
+def load_all_models(env, device):
     modellist = [f for f in os.listdir(os.path.join(config.MODELDIR, env.name)) if f.startswith("_model")]
     modellist.sort()
-    models = [load_model(env, 'base.zip')]
+    models = [load_model(env, 'base.zip', device)]
     for model_name in modellist:
-        models.append(load_model(env, name = model_name))
+        models.append(load_model(env, name = model_name, device=device))
     return models
 
 

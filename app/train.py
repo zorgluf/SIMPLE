@@ -43,22 +43,19 @@ def main(args):
 
   logger.info('\nSetting up the selfplay training environment opponents...')
   base_env = get_environment(args.env_name)
-  env = selfplay_wrapper(base_env)(opponent_type = args.opponent_type, verbose = args.verbose)
+  env = selfplay_wrapper(base_env)(opponent_type = args.opponent_type, verbose = args.verbose, device = args.device)
   env.seed(args.seed)
   env.logger = logger
 
   params = {'gamma':args.gamma
-    , 'timesteps_per_actorbatch':args.timesteps_per_actorbatch
-    , 'clip_param':args.clip_param
-      , 'entcoeff':args.entcoeff
-      , 'optim_epochs':args.optim_epochs
-      , 'optim_stepsize':args.optim_stepsize
-      , 'optim_batchsize':args.optim_batchsize
-      , 'lam':args.lam
-      , 'adam_epsilon':args.adam_epsilon
-      , 'schedule':'linear'
+    , 'clip_range':args.clip_param
+      , 'ent_coeff':args.entcoeff
+      , 'n_epochs':args.n_epochs
+      , 'n_steps':args.n_steps
+      , 'batch_size':args.batch_size
       , 'verbose':1
       , 'tensorboard_log':config.LOGDIR
+      , 'device': args.device
   }
 
   time.sleep(5) # allow time for the base model to be saved out when the environment is created
@@ -73,7 +70,7 @@ def main(args):
   #Callbacks
   logger.info('\nSetting up the selfplay evaluation environment opponents...')
   callback_args = {
-    'eval_env': selfplay_wrapper(base_env)(opponent_type = args.opponent_type, verbose = args.verbose),
+    'eval_env': selfplay_wrapper(base_env)(opponent_type = args.opponent_type, verbose = args.verbose, device = args.device),
     'best_model_save_path' : config.TMPMODELDIR,
     'log_path' : config.LOGDIR,
     'eval_freq' : args.eval_freq,
@@ -142,24 +139,20 @@ def cli() -> None:
             , help="What score must the agent achieve during evaluation to 'beat' the previous version?")
   parser.add_argument("--gamma", "-g",  type = float, default = 0.99
             , help="The value of gamma in PPO")
-  parser.add_argument("--timesteps_per_actorbatch", "-tpa",  type = int, default = 1024
-            , help="How many timesteps should each actor contribute to the batch?")
   parser.add_argument("--clip_param", "-c",  type = float, default = 0.2
             , help="The clip paramater in PPO")
   parser.add_argument("--entcoeff", "-ent",  type = float, default = 0.1
             , help="The entropy coefficient in PPO")
 
-  parser.add_argument("--optim_epochs", "-oe",  type = int, default = 4
+  parser.add_argument("--n_epochs", "-oe",  type = int, default = 10
             , help="The number of epoch to train the PPO agent per batch")
-  parser.add_argument("--optim_stepsize", "-os",  type = float, default = 0.0003
+  parser.add_argument("--n_steps", "-os",  type = int, default = 2048
             , help="The step size for the PPO optimiser")
-  parser.add_argument("--optim_batchsize", "-ob",  type = int, default = 1024
+  parser.add_argument("--batch_size", "-ob",  type = int, default = 128
             , help="The minibatch size in the PPO optimiser")
-            
-  parser.add_argument("--lam", "-l",  type = float, default = 0.95
-            , help="The value of lambda in PPO")
-  parser.add_argument("--adam_epsilon", "-a",  type = float, default = 1e-05
-            , help="The value of epsilon in the Adam optimiser")
+
+  parser.add_argument("--device", "-dev",  type = str, default = "cpu"
+            , help="The device to use")
 
   # Extract args
   args = parser.parse_args()

@@ -3,7 +3,7 @@ from collections import OrderedDict
 
 from gymnasium import spaces
 
-from torch import nn
+from torch import nn, cuda
 from torch import reshape, flatten, cat, add, Tensor, permute
 
 from sb3_contrib.common.maskable.policies import MaskableActorCriticPolicy
@@ -83,7 +83,7 @@ class CustomNetwork(nn.Module):
         board, cards = split_input(y, int(y.shape[1])-(MAX_BOARD_SIZE*3*BOARD_CELL_DIM_SIZE))
         board = reshape(board,[ -1, MAX_BOARD_SIZE, 3, BOARD_CELL_DIM_SIZE ])
         board = permute(board,(0,3,1,2))
-
+        
         board = self.resnet_extractor_board(board)
         board = permute(board,(0,2,3,1))
         board = flatten(board,1)
