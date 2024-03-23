@@ -36,6 +36,12 @@ def write_results(players, game, games, episode_length):
         writer = csv.DictWriter(csvfile, fieldnames=out.keys())
         writer.writerow(out)
 
+def list_model(env):
+    models = list()
+    for f in os.listdir(os.path.join(config.MODELDIR, env.name)):
+        if not f.startswith("_") and f.endswith(".zip"):
+            models.append(f[:-4])
+    return models
 
 def load_model(env, name, device):
 

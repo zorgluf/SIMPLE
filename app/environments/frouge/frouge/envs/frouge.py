@@ -1,17 +1,24 @@
-import gym
+import gymnasium as gym
 import numpy as np
 
 import random
+from time import sleep
 import logging as logger
 from functools import cmp_to_key
 from typing import List
 
+from nicegui import app
+
 from .classes import *
+from .render_web import render_web
 
-N_PLAYERS = 5
-OBS_SIZE = MAX_BOARD_SIZE*3*(MAX_CODE + 2*N_PLAYERS) + len(ALL_CARDS) * N_PLAYERS + 2*len(ALL_CARDS) + len(ALL_CARDS) + 2 + MAX_START_SPACES
+class FlammeRougeEnv(gym.Env):
+    metadata = {'render_modes': ['human', 'human_web']}
 
-PLAYER_COLOR_MAP = {
+    N_PLAYERS = 5
+    OBS_SIZE = MAX_BOARD_SIZE*3*(MAX_CODE + 2*N_PLAYERS) + len(ALL_CARDS) * N_PLAYERS + 2*len(ALL_CARDS) + len(ALL_CARDS) + 2 + MAX_START_SPACES
+
+    PLAYER_COLOR_MAP = {
                 "1" : "91",
                 "2" : "92",
                 "3" : "93",
@@ -19,17 +26,25 @@ PLAYER_COLOR_MAP = {
                 "5" : "95",
             }
 
-class FlammeRougeEnv(gym.Env):
-    metadata = {'render.modes': ['human']}
+    ACTION_SELECT_SPRINTEUR_DECK = len(ALL_CARDS)
+    ACTION_SELECT_ROULEUR_DECK = len(ALL_CARDS) + 1
 
-    def __init__(self, verbose = False, manual = False):
+    def __init__(self, verbose = False, manual = False, render_mode = None):
         super(FlammeRougeEnv, self).__init__()
         self.name = 'frouge'
-        self.manual = manual
+
+        assert render_mode is None or render_mode in self.metadata["render_modes"]
+        self.render_mode = render_mode
+        self._web_thread = None
+        self.handle_interactive_action = render_mode == "human_web"
+        self._interactive_action_on = False
+        self._interactive_action_result = None
         
         self.n_players = 5
+        self.board: Board
         self.board = None
         self.penalty = list()
+        self.last_played_cards = dict()
         
         card_types = len(ALL_CARDS)
         #action space = all possible rouleur and sprinter cards = card_types
@@ -37,7 +52,6 @@ class FlammeRougeEnv(gym.Env):
         self.action_space = gym.spaces.Discrete(card_types + 2 + MAX_START_SPACES)
         #observation space = board + current player played cards + current player discarded cards + other player played cards + current player hand (+action_space)
         self.observation_space = gym.spaces.Box(0, 1, (MAX_BOARD_SIZE*3*(MAX_CODE + 2*self.n_players) + card_types * self.n_players + 2*card_types,))
-        self.verbose = verbose
 
         
     @property
@@ -118,9 +132,8 @@ class FlammeRougeEnv(gym.Env):
         return c_type, col, row
 
     def from_action_to_hand_order(self, action):
-        action  = action - len(ALL_CARDS)
 
-        if action == 0:
+        if action == self.ACTION_SELECT_SPRINTEUR_DECK:
             hand_order = ['s', 'r']
         else:
             hand_order = ['r', 's']
@@ -130,7 +143,7 @@ class FlammeRougeEnv(gym.Env):
 
 
     def score_game(self):
-
+        #TODO : improve scoring for PPO
         #get progressions
         positions = [ p.r_position.col + p.s_position.col for p in self.board.players]
         #get card values spends
@@ -147,7 +160,7 @@ class FlammeRougeEnv(gym.Env):
             #give reward for winner
             scores[np.argmax(pos)] += 1000
 
-        logger.debug(f"Rewards: {scores}")
+        logger.info(f"Rewards: {scores}")
         return scores
 
 
@@ -172,6 +185,8 @@ class FlammeRougeEnv(gym.Env):
         #move each cyclist
         for player, c_type in self.cyclists:
             card = player.c_chosen_card(c_type)
+            #store last played card for rendering
+            self.last_played_cards[(player,c_type)] = card
             #move cyclist
             self.board.move(player.n, c_type, card.value)
             #if finish, last turn
@@ -287,7 +302,7 @@ class FlammeRougeEnv(gym.Env):
             else:
                 raise Exception(f'Invalid phase: {self.phase}')
 
-        return self.observation, rewards, done, {}
+        return self.observation, rewards, done, False, self._get_info()
 
     def finish_turn(self):
         #discard cards and draw new
@@ -341,12 +356,15 @@ class FlammeRougeEnv(gym.Env):
                 if len(drawn) == 0:
                     drawn.append(PENALTY_SPRINTER_CARD)
                 player.s_hand.add(drawn)
+    
+    def _get_info(self):
+        return None
 
-    def reset(self):
+    def reset(self, seed = None):
         
-        random.seed()
+        super().reset(seed=seed)
         #pick a random board
-        self.board = Board(random.choice(ALL_BOARDS))
+        self.board = Board(self.np_random.choice(ALL_BOARDS))
         #reset players
         player_id = 1
         for p in range(self.n_players):
@@ -364,99 +382,115 @@ class FlammeRougeEnv(gym.Env):
 
         #build cyclists list
         self.cyclists = [ (p,"r") for p in self.board.players ] + [ (p,"s") for p in self.board.players ]
+        self.last_played_cards = { c:None for c in self.cyclists }
 
         # self.set_start_positions()
         # self.draw_cards()
 
         self.done = False
         self.last_turn = False
-        logger.debug(f'\n\n---- NEW GAME ----')
+        logger.info(f'\n\n---- NEW GAME ----')
         self.render_map(first_turn=True)
 
-        return self.observation
+        return self.observation, self._get_info()
 
     def render_map(self,first_turn=False):
 
-        #clear screen
-        # logger.debug('\033[2J')
-        # logger.debug('\033[0;0H')
-        #display board
-        logger.debug('\n')
-        line_size = 40
-        for i in range(int(len(self.board.array)/line_size)):
-            #print line by line
-            for k in range(3):
-                line = ""
-                for j in range(line_size*i,line_size*(i+1)):
-                    player_color = ""
-                    content = self.board.get_cell_display(j,k)
-                    if content == "":
-                        content = "  "
-                    else:
-                        player_num = content[0]
-                        player_color =  PLAYER_COLOR_MAP[player_num]+";"
-                    cell = self.board.get_cell(j,k)
-                    if cell == CV:
-                        line += f'{content} '
-                    else:
-                        if cell == CC: # climb
-                            color = "101" # light red
-                        if cell == CD: # descent
-                            color = "44" # blue
-                        if cell == CP: # paved
-                            color = "43" # yellow
-                        if cell == CSU: # supply cell
-                            color = "46" # cyan
-                        if cell == CS: # start
-                            color = "100" # gray
-                        if cell == CF: # finish
-                            color = "100" # gray
-                        if cell == CN: #normal
-                            color = "49" # black
-                        line += f'\033[{player_color}{color};5m{content}\033[0m|'
-                logger.debug(line)
-            logger.debug("---"*line_size)
-        if self.phase == 2:
-            if not first_turn:
-                #display card played
-                for p in self.board.players:
-                    penalty = ""
-                    for pen in self.penalty:
-                        if p.n == int(pen[0]):
-                            penalty += "X" + pen[1]
-                    logger.debug(f'\033[{PLAYER_COLOR_MAP[str(p.n)]}mPlayer {p.name} played : {p.r_chosen.name} {p.s_chosen.name}   Penalty: {penalty}\033[0m|          ')
-            else:
-                for i in range(len(self.board.players)):
-                    logger.debug(' '*line_size*3)
-
-
-    def render(self, mode='human', close=False):
-        #TODO : add a web mode
-        if close:
-            return
-        if mode == "human" and not self.done:
-            #move cursor
-            # logger.debug('\033[18;0H')
-            tab_size = 20
-            p = self.current_player
-
+        if self.render_mode == 'human':
+            #clear screen
+            # logger.info('\033[2J')
+            # logger.info('\033[0;0H')
+            #display board
+            logger.info('\n')
+            line_size = 40
+            for i in range(int(len(self.board.array)/line_size)):
+                #print line by line
+                for k in range(3):
+                    line = ""
+                    for j in range(line_size*i,line_size*(i+1)):
+                        player_color = ""
+                        content = self.board.get_cell_display(j,k)
+                        if content == "":
+                            content = "  "
+                        else:
+                            player_num = content[0]
+                            player_color =  self.PLAYER_COLOR_MAP[player_num]+";"
+                        cell = self.board.get_cell(j,k)
+                        if cell == CV:
+                            line += f'{content} '
+                        else:
+                            if cell == CC: # climb
+                                color = "101" # light red
+                            if cell == CD: # descent
+                                color = "44" # blue
+                            if cell == CP: # paved
+                                color = "43" # yellow
+                            if cell == CSU: # supply cell
+                                color = "46" # cyan
+                            if cell == CS: # start
+                                color = "100" # gray
+                            if cell == CF: # finish
+                                color = "100" # gray
+                            if cell == CN: #normal
+                                color = "49" # black
+                            line += f'\033[{player_color}{color};5m{content}\033[0m|'
+                    logger.info(line)
+                logger.info("---"*line_size)
             if self.phase == 2:
-                #display player hands
-                cyclist = p.hand_order[self.hand_number]
-                logger.debug(f'\033[{PLAYER_COLOR_MAP[str(p.n)]}mPlayer {p.name}\'s {cyclist} hand\033[0m')
-                line = (" " * tab_size) + "".join([ c.name + ' (' + str(self.from_card_to_action(c)) + ')' + " "*len(c.name) for c in p.c_hand(cyclist).cards ])
-                logger.debug(f'{line}')
-            elif self.phase == 1:
-                logger.debug(f'\033[{PLAYER_COLOR_MAP[str(p.n)]}mPlayer {p.name} has to choose first hand to reveal\033[0m')
-                logger.debug(f"s({len(ALL_CARDS)}) r({len(ALL_CARDS)+1})")
-            elif self.phase == 0:
-                c_type = "s" if self.current_player.s_position.col == -1 else "r"
-                logger.debug(f'\033[{PLAYER_COLOR_MAP[str(p.n)]}mPlayer {p.name} has to place cyclist {c_type}\033[0m')
-                actions = [index for index, value in enumerate(self.action_masks()) if value == True]
-                logger.debug(" ".join([ f"{a - len(ALL_CARDS) - 1}({a})" for a in actions]))
+                if not first_turn:
+                    #display card played
+                    for p in self.board.players:
+                        penalty = ""
+                        for pen in self.penalty:
+                            if p.n == int(pen[0]):
+                                penalty += "X" + pen[1]
+                        logger.info(f'\033[{self.PLAYER_COLOR_MAP[str(p.n)]}mPlayer {p.name} played : {p.r_chosen.name} {p.s_chosen.name}   Penalty: {penalty}\033[0m|          ')
+                else:
+                    for i in range(len(self.board.players)):
+                        logger.info(' '*line_size*3)
 
-        if self.done:
-            logger.debug(f'\n\nGAME OVER')
+
+    def render(self):
+        if self.render_mode == "human_web":
+            render_web(self)
+
+        if self.render_mode == "human":
+            if not self.done:
+                #move cursor
+                # logger.info('\033[18;0H')
+                tab_size = 20
+                p = self.current_player
+
+                if self.phase == 2:
+                    #display player hands
+                    cyclist = p.hand_order[self.hand_number]
+                    logger.info(f'\033[{self.PLAYER_COLOR_MAP[str(p.n)]}mPlayer {p.name}\'s {cyclist} hand\033[0m')
+                    line = (" " * tab_size) + "".join([ c.name + ' (' + str(self.from_card_to_action(c)) + ')' + " "*len(c.name) for c in p.c_hand(cyclist).cards ])
+                    logger.info(f'{line}')
+                elif self.phase == 1:
+                    logger.info(f'\033[{self.PLAYER_COLOR_MAP[str(p.n)]}mPlayer {p.name} has to choose first hand to reveal\033[0m')
+                    logger.info(f"s({len(ALL_CARDS)}) r({len(ALL_CARDS)+1})")
+                elif self.phase == 0:
+                    c_type = "s" if self.current_player.s_position.col == -1 else "r"
+                    logger.info(f'\033[{self.PLAYER_COLOR_MAP[str(p.n)]}mPlayer {p.name} has to place cyclist {c_type}\033[0m')
+                    actions = [index for index, value in enumerate(self.action_masks()) if value == True]
+                    logger.info(" ".join([ f"{a - len(ALL_CARDS) - 1}({a})" for a in actions]))
+            else:
+                logger.info(f'\n\nGAME OVER')
+    
+    def get_interactive_action(self) -> int:
+        self._interactive_action_on = True
+        while True:
+            if self._interactive_action_result != None:
+                self._interactive_action_on = False
+                action = self._interactive_action_result
+                self._interactive_action_result = None
+                return action 
+            sleep(1)
+
             
     def rules_move(self):
         raise Exception('Rules based agent is not yet implemented for Flamme Rouge!')
+    
+    def close(self):
+        app.shutdown()

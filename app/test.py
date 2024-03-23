@@ -12,22 +12,30 @@ from utils.register import get_environment
 from utils.agents import Agent
 
 import config
+import numpy as np
 
 
 def main(args):
 
   logger = configure(config.LOGDIR)
 
+  render_mode = args.render_mode
+
+  if args.seed == 0:
+    seed = random.randint(0,1000)
+  else:
+    seed = args.seed
+
   if args.debug:
     logger.set_level(config.DEBUG)
     logging.basicConfig(level=logging.DEBUG)
+    render_mode = 'human'
   else:
     logger.set_level(config.INFO)
     
   #make environment
-  env = get_environment(args.env_name)(verbose = args.verbose, manual = args.manual)
-  env.seed(args.seed)
-  set_random_seed(args.seed)
+  env = get_environment(args.env_name)(verbose = args.verbose, manual = args.manual, render_mode = render_mode)
+  set_random_seed(seed)
 
   total_rewards = {}
 
@@ -66,7 +74,7 @@ def main(args):
     if args.randomise_players:
       random.shuffle(players)
 
-    obs = env.reset()
+    obs = env.reset(seed = seed)
     done = False
     
     for i, p in enumerate(players):
@@ -84,13 +92,16 @@ def main(args):
         action = ppo_agent.choose_action(env, choose_best_action = True, mask_invalid_actions = True)
 
       if current_player.name == 'human':
-        action = input('\nPlease choose an action: ')
-        try:
-          # for int actions
-          action = int(action)
-        except:
-          # for MulitDiscrete action input as list TODO
-          action = eval(action)
+        if hasattr(env,"handle_interactive_action") and env.handle_interactive_action == True:
+          action = env.get_interactive_action()
+        else:
+          action = input('\nPlease choose an action: ')
+          try:
+            # for int actions
+            action = int(action)
+          except:
+            # for MulitDiscrete action input as list TODO
+            action = eval(action)
       elif current_player.name == 'rules':
         logger.debug(f'\n{current_player.name} model choices')
         action = current_player.choose_action(env, choose_best_action = False, mask_invalid_actions = True)
@@ -98,7 +109,7 @@ def main(args):
         logger.debug(f'\n{current_player.name} model choices')
         action = current_player.choose_action(env, choose_best_action = args.best, mask_invalid_actions = True)
 
-      obs, reward, done, _ = env.step(action)
+      obs, reward, done, _ , _ = env.step(action)
 
       for r, player in zip(reward, players):
         total_rewards[player.id] += r
@@ -135,8 +146,8 @@ def cli() -> None:
                 , help="Make AI agents choose the best move (rather than sampling)")
   parser.add_argument("--games", "-g", type = int, default = 1
                 , help="Number of games to play)")
-  # parser.add_argument("--n_players", "-n", type = int, default = 3
-  #               , help="Number of players in the game (if applicable)")
+  parser.add_argument("--render_mode", "-rm", type = str, default = None
+                 , help="Render mode to use in game gym env")
   parser.add_argument("--debug", "-d",  action = 'store_true', default = False
             , help="Show logs to debug level")
   parser.add_argument("--verbose", "-v",  action = 'store_true', default = False
@@ -158,7 +169,6 @@ def cli() -> None:
   
   parser.add_argument("--device", "-dev",  type = str, default = "cpu"
             , help="The device to use")
-
   # Extract args
   args = parser.parse_args()
 
