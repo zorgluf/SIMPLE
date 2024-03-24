@@ -357,7 +357,7 @@ class FlammeRougeEnv(gym.Env):
                 player.s_hand.add(drawn)
     
     def _get_info(self):
-        return None
+        return {}
 
     def reset(self, seed = None):
         

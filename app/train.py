@@ -44,7 +44,6 @@ def main(args):
   logger.info('\nSetting up the selfplay training environment opponents...')
   base_env = get_environment(args.env_name)
   env = selfplay_wrapper(base_env)(opponent_type = args.opponent_type, verbose = args.verbose, device = args.device)
-  env.seed(args.seed)
   env.logger = logger
 
   params = {'gamma':args.gamma
@@ -131,6 +130,7 @@ def cli() -> None:
   parser.add_argument("--seed", "-s",  type = int, default = 17
             , help="Random seed")
 
+  #TODO : optimize params
   parser.add_argument("--eval_freq", "-ef",  type = int, default = 10240
             , help="How many timesteps should each actor contribute before the agent is evaluated?")
   parser.add_argument("--n_eval_episodes", "-ne",  type = int, default = 100
