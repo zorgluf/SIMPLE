@@ -492,4 +492,7 @@ class FlammeRougeEnv(gym.Env):
         raise Exception('Rules based agent is not yet implemented for Flamme Rouge!')
     
     def close(self):
-        app.shutdown()
+        if self.render_mode == "human_web":
+            #time to render last update
+            sleep(2)
+            app.shutdown()

@@ -86,7 +86,7 @@ def _gui_board(board: Board):
                         if model_data["game_env"].phase == 0 and cell == CS and rider == "-":
                             ui.button("-", on_click=lambda x=(c+cell_per_line*i,r): _on_click_cell_listener(x[0],x[1]))
                         else:
-                            ui.label(rider).classes("border text-center self-center").tailwind.background_color(bg_c).margin("0").width("10").text_color(_get_rider_color(board,c,r))
+                            ui.label(rider).classes("border text-center self-center").tailwind.background_color(bg_c).margin("0").width("10").text_color(_get_rider_color(board,c+cell_per_line*i,r))
             #blank line
             ui.label("_")
 
@@ -120,7 +120,7 @@ def _gui_players(env: FlammeRougeEnv):
                             ui.label("X").tailwind.background_color("red-10")
                 else:
                     ui.label("-")
-    pass
+    ui.label(f"Player {env.score_game().index(max(env.score_game()))+1} WIN !!!!").bind_visibility_from(env, "done").classes("text-h6").tailwind.text_color("red")
 
 @ui.refreshable
 def _gui_human_actions(env: FlammeRougeEnv):
