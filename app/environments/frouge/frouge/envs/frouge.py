@@ -143,13 +143,12 @@ class FlammeRougeEnv(gym.Env):
 
 
     def score_game(self):
-        #TODO : improve scoring for PPO
         #get progressions
         positions = [ p.r_position.col + p.s_position.col for p in self.board.players]
         #get card values spends
         spent = [ - p.s_played.sum_values() - p.r_played.sum_values() for p in self.board.players ]
         #get penalty cards number
-        penalties = [ - p.nb_penalties() for p in self.board.players ]
+        penalties = [ - p.nb_penalties()*2 for p in self.board.players ]
 
         scores = [ sum(x) for x in zip(positions, spent, penalties) ]
 
@@ -158,7 +157,7 @@ class FlammeRougeEnv(gym.Env):
             #get the most advanced user
             pos = [ max((p.r_position.col*3-p.r_position.row),(p.s_position.col*3-p.s_position.row)) for p in self.board.players]
             #give reward for winner
-            scores[np.argmax(pos)] += 1000
+            scores[np.argmax(pos)] = 1000
 
         logger.info(f"Rewards: {scores}")
         return scores
