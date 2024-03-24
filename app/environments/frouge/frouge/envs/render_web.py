@@ -101,15 +101,23 @@ def _gui_players(env: FlammeRougeEnv):
             ui.label("Rouleur")
             for p in env.board.players:
                 card = env.last_played_cards[(p,"r")]
+                penalty = str(p.n)+"r" in env.penalty
                 if card != None:
-                    ui.label(card.name).tailwind.text_color(_get_player_color(p.n))
+                    with ui.row().classes("border"):
+                        ui.label(card.name).tailwind.text_color(_get_player_color(p.n))
+                        if penalty:
+                            ui.label("X").tailwind.background_color("red-10")
                 else:
                     ui.label("-")
             ui.label("Sprinter")
             for p in env.board.players:
                 card = env.last_played_cards[(p,"s")]
+                penalty = str(p.n)+"s" in env.penalty
                 if card != None:
-                    ui.label(card.name).tailwind.text_color(_get_player_color(p.n))
+                    with ui.row().classes("border"):
+                        ui.label(card.name).tailwind.text_color(_get_player_color(p.n))
+                        if penalty:
+                            ui.label("X").tailwind.background_color("red-10")
                 else:
                     ui.label("-")
     pass

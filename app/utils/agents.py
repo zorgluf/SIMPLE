@@ -26,7 +26,8 @@ class Agent():
       self.id = self.name + '_' + ''.join(random.choice(string.ascii_lowercase) for x in range(5))
       self.model = model
       self.points = 0
-      self.device = model.device
+      if model != None:
+        self.device = model.device
 
   def print_top_actions(self, action_probs):
     top5_action_idx = np.argsort(-action_probs)[:5]
