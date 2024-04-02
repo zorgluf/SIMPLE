@@ -141,7 +141,7 @@ def cli() -> None:
             , help="The value of gamma in PPO")
   parser.add_argument("--clip_param", "-c",  type = float, default = 0.2
             , help="The clip paramater in PPO")
-  parser.add_argument("--entcoeff", "-ent",  type = float, default = 0.1
+  parser.add_argument("--entcoeff", "-ent",  type = float, default = 0.0
             , help="The entropy coefficient in PPO")
 
   parser.add_argument("--n_epochs", "-oe",  type = int, default = 10
