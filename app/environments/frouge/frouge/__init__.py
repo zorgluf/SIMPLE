@@ -6,5 +6,5 @@ register(
 )
 
 # optimal training :
-#docker-compose exec app python3 train.py -r -e frouge -t 250 -os 60 -ob 256 -dev cuda
+#docker-compose exec app python3 train.py -r -e frouge -t 300 -os 12800 -ob 256 -dev cuda
 

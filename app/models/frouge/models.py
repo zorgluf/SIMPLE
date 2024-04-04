@@ -38,12 +38,13 @@ class CustomNetwork(nn.Module):
         self.latent_dim_vf = 1
 
         self.resnet_extractor_board = nn.Sequential(
-            convolutional(BOARD_CELL_DIM_SIZE,int(FEATURE_SIZE/2), kernel_size=9, strides=1, padding=4),
-            convolutional(int(FEATURE_SIZE/2), BOARD_CELL_DIM_SIZE, kernel_size=9, strides=1, padding=4),
+            convolutional(BOARD_CELL_DIM_SIZE,BOARD_CELL_DIM_SIZE, kernel_size=9, strides=1, padding=4),
+            #convolutional(BOARD_CELL_DIM_SIZE,int(FEATURE_SIZE/2), kernel_size=9, strides=1, padding=4),
+            #convolutional(int(FEATURE_SIZE/2), BOARD_CELL_DIM_SIZE, kernel_size=9, strides=1, padding=4),
         )
         self.resnet_extractor_final = dense(OBS_SIZE, FEATURE_SIZE)
         self.residual = nn.Sequential(
-            dense(FEATURE_SIZE, FEATURE_SIZE),
+            #dense(FEATURE_SIZE, FEATURE_SIZE),
             dense(FEATURE_SIZE,FEATURE_SIZE, activation = None)
         )
         self.policy_head = nn.Sequential(
