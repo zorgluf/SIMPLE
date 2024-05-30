@@ -106,6 +106,10 @@ Install [Docker](https://github.com/davidADSP/SIMPLE/issues) and [Docker Compose
    bash ./scripts/install_env.sh sushigo
    ```
 
+Build standalone docker play images :
+  ```sh
+  docker build . -t simple-play-frouge -f app/Dockerfile_play_frouge
+  ```
 ---
 <!-- TUTORIAL -->
 ## Tutorial
@@ -125,6 +129,11 @@ This entrypoint allows you to play against a trained AI, pit two AIs against eac
 For example, try the following command to play against a baseline random model in the Sushi Go environment.
    ```sh
    docker-compose exec app python3 test.py -d -g 1 -a base base human -e sushigo 
+   ```
+
+To start web-gui mode :
+  ```sh
+   docker-compose exec app python3 test.py -rm human_web -g 1 -a base base human base base -e frouge 
    ```
 
 #### `train.py` 

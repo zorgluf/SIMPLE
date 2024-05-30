@@ -46,12 +46,24 @@ def list_model(env):
 def load_model(env, name, device):
 
     filename = os.path.join(config.MODELDIR, env.name, name)
+    filename_pretrained = os.path.join(config.MODELDIR, "pretrained", env.name, name)
     if os.path.exists(filename):
         logger.info(f'Loading {name}')
         cont = True
         while cont:
             try:
                 ppo_model = PPO1.load(filename, env=env, device=device)
+                cont = False
+            except Exception as e:
+                time.sleep(5)
+                print(e)
+    
+    elif os.path.exists(filename_pretrained):
+        logger.info(f'Loading {name}')
+        cont = True
+        while cont:
+            try:
+                ppo_model = PPO1.load(filename_pretrained, env=env, device=device)
                 cont = False
             except Exception as e:
                 time.sleep(5)
