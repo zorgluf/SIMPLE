@@ -62,12 +62,11 @@ def _on_click_cell_listener(c, r):
 @ui.refreshable
 def _gui_board(board: Board):
     if board != None:
-        cell_per_line = 40
-        for i in range(3):
-            with ui.grid(rows=3, columns=cell_per_line).classes("gap-0").style("width: 100%"):
-                for r in range(3):
-                    for c in range(cell_per_line):
-                        cell = board.get_cell(c+cell_per_line*i,r)
+        with ui.row().classes("gap-0"):
+            for i in range(len(board.array)):
+                with ui.column().classes("gap-0"):
+                    for r in range(3):
+                        cell = board.get_cell(i,r)
                         if cell == CV:
                             bg_c = "transparent"
                         if cell == CC: # climb
@@ -84,19 +83,22 @@ def _gui_board(board: Board):
                             bg_c = "grey-6" # gray
                         if cell == CN: #normal
                             bg_c = "grey-4" # light grey
-                        rider = _get_rider(board,c+cell_per_line*i,r)
+                        rider = _get_rider(board,i,r)
                         style_border = "border-top: 3px solid white; padding-top: 3px;" if r == 0 else "border-top: 2px dashed white; padding-top: 2px;"
-                        if cell != CV and (r == 2 or board.get_cell(c+cell_per_line*i,r+1) == CV):
+                        if cell != CV:
+                            style_border += " border-left: 1px solid black; padding-left: 1px"
+                        if cell != CV and (r == 2 or board.get_cell(i,r+1) == CV):
                             style_border += " border-bottom: 3px solid white; padding-bottom: 3px;"
                         if model_data["game_env"].phase == 0 and cell == CS and rider == "-":
-                            ui.button("-", on_click=lambda x=(c+cell_per_line*i,r): _on_click_cell_listener(x[0],x[1])).style("width: 100%;")
+                            ui.button("-", on_click=lambda x=(i,r): _on_click_cell_listener(x[0],x[1])).style("width: 3em; height: 3em;").classes("gap-0 m-0 p-0")
                         else:
                             if rider.endswith("r"):
-                                _element_rouleur(_get_rider_color(board,c+cell_per_line*i,r)).style(f'width: 100%; {style_border}').tailwind.display("flex").background_color(bg_c)
+                                _element_rouleur(_get_rider_color(board,i,r)).style(f'width: 3em; height: 3em; {style_border}').tailwind.background_color(bg_c)
                             elif rider.endswith("s"):
-                                _element_sprinteur(_get_rider_color(board,c+cell_per_line*i,r)).style(f'width: 100%; {style_border}').tailwind.display("flex").background_color(bg_c)
+                                _element_sprinteur(_get_rider_color(board,i,r)).style(f'width: 3em; height: 3em; {style_border}').tailwind.background_color(bg_c)
                             else:
-                                ui.html("<div>&nbsp;</div>").style(f'width: 100%; {style_border}').tailwind.background_color(bg_c).border_color("black")
+                                ui.html("<div>&nbsp;</div>").style(f'width: 3em; height: 3em; {style_border}').tailwind.background_color(bg_c)
+                    ui.html("<div>&nbsp;</div>").style(f'width: 3em; height: 3em;')
 #fix : Traceback (most recent call last):
 #  File "/app/environments/frouge/frouge/envs/render_web.py", line 99, in _gui_board
 #    ui.html("<div>&nbsp;</div>").style(f'width: 100%; {style_border}').tailwind.background_color(bg_c).border_color("black")
