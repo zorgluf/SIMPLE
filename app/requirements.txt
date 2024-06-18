@@ -1,5 +1,5 @@
-torch==2.2.1 
-stable-baselines3==2.2.1
-jupyterlab==4.1.2
+torch
+stable-baselines3
+jupyterlab
 pillow
-tensorboard==2.16.2 
+tensorboard
