@@ -35,10 +35,6 @@ class FlammeRougeEnv(gym.Env):
 
         assert render_mode is None or render_mode in self.metadata["render_modes"]
         self.render_mode = render_mode
-        self._web_thread = None
-        self.handle_interactive_action = render_mode == "human_web"
-        self._interactive_action_on = False
-        self._interactive_action_result = None
         
         self.n_players = 5
         self.board: Board
@@ -449,9 +445,9 @@ class FlammeRougeEnv(gym.Env):
                         logger.info(' '*line_size*3)
 
 
-    def render(self):
+    def render(self, **kwargs):
         if self.render_mode == "human_web":
-            render_web(self)
+            render_web(self, **kwargs)
 
         if self.render_mode == "human":
             if not self.done:
@@ -477,16 +473,6 @@ class FlammeRougeEnv(gym.Env):
             else:
                 logger.info(f'\n\nGAME OVER')
     
-    def get_interactive_action(self) -> int:
-        self._interactive_action_on = True
-        while True:
-            if self._interactive_action_result != None:
-                self._interactive_action_on = False
-                action = self._interactive_action_result
-                self._interactive_action_result = None
-                return action 
-            sleep(1)
-
             
     def rules_move(self):
         raise Exception('Rules based agent is not yet implemented for Flamme Rouge!')

@@ -8,8 +8,7 @@ import threading
 
 from .classes import *
 
-STOP_STEP_MODE = True
-
+FIRST_START = True
 
 def _get_player_color(n: int):
     if n == 1:
@@ -35,27 +34,27 @@ def _get_rider(board, c, r):
         rider = "-"
     return rider
 
-def _on_select_sprinteur_deck(env):
+def _on_select_sprinteur_deck(env, callback):
     action = env.ACTION_SELECT_SPRINTEUR_DECK
-    env._interactive_action_result = action
+    callback(action)
 
-def _on_select_rouleur_deck(env):
+def _on_select_rouleur_deck(env, callback):
     action = env.ACTION_SELECT_ROULEUR_DECK
-    env._interactive_action_result = action
+    callback(action)
 
-def _on_card_selected(card, env):
+def _on_card_selected(card, env, callback):
     action = ALL_CARDS.index(card)
-    env._interactive_action_result = action
+    callback(action)
 
-def _on_click_cell_listener(c, r, env):
+def _on_click_cell_listener(c, r, env, callback):
     if env.phase == 0:
         if env.board.get_cell(c,r) == CS:
             if env.board.get_cell_display(c,r) == "":
                 action = c*3 + r + len(ALL_CARDS) + 2
-                env._interactive_action_result = action
+                callback(action)
 
 @ui.refreshable
-def _gui_board(env):
+def _gui_board(env, callback):
     board = env.board
     if board != None:
         with ui.row().classes("gap-0"):
@@ -86,7 +85,7 @@ def _gui_board(env):
                         if cell != CV and (r == 2 or board.get_cell(i,r+1) == CV):
                             style_border += " border-bottom: 3px solid white; padding-bottom: 3px;"
                         if env.phase == 0 and cell == CS and rider == "-":
-                            ui.button("-", on_click=lambda x=(i,r): _on_click_cell_listener(x[0],x[1],env)).style("width: 3em; height: 3em;").classes("gap-0 m-0 p-0")
+                            ui.button("-", on_click=lambda x=(i,r): _on_click_cell_listener(x[0],x[1],env,callback)).style("width: 3em; height: 3em;").classes("gap-0 m-0 p-0")
                         else:
                             if rider.endswith("r"):
                                 _element_rouleur(_get_rider_color(board,i,r)).style(f'width: 3em; height: 3em; {style_border}').tailwind.background_color(bg_c)
@@ -147,15 +146,15 @@ def _gui_players(env: FlammeRougeEnv):
     ui.label(f"Player {env.score_game().index(max(env.score_game()))+1} WIN !!!!").bind_visibility_from(env, "done").classes("text-h6").tailwind.text_color("red")
 
 @ui.refreshable
-def _gui_human_actions(env: FlammeRougeEnv):
+def _gui_human_actions(env: FlammeRougeEnv, callback):
     with ui.row().bind_visibility_from(env, '_interactive_action_on'):
         with ui.column():
             ui.label("").bind_text_from(env,"current_player_num",backward=lambda x: f"Human player {x+1} turn")
             ui.label("").bind_visibility_from(env,"phase",backward=lambda x: x == 0).bind_text_from(env.current_player.s_position,"col",backward=lambda x:  "Place your Sprinteur (click on a starting cell)" if x == -1 else "Place your Rouleur (click on a starting cell)")
             with ui.row().bind_visibility_from(env,"phase",backward=lambda p: p==1):
-                with ui.button("Choose Sprinter deck", on_click=lambda:_on_select_sprinteur_deck(env)):
+                with ui.button("Choose Sprinter deck", on_click=lambda:_on_select_sprinteur_deck(env, callback)):
                     _element_sprinteur(_get_player_color(env.current_player_num+1)).style("width: 100%;")
-                with ui.button("Choose Rouleur deck", on_click=lambda:_on_select_rouleur_deck(env)):
+                with ui.button("Choose Rouleur deck", on_click=lambda:_on_select_rouleur_deck(env, callback)):
                     _element_rouleur(_get_player_color(env.current_player_num+1)).style("width: 100%;")
             with ui.row().bind_visibility_from(env,"phase",backward=lambda p: p==2):
                 if env.current_player.hand_order[env.hand_number] == 'r':
@@ -166,7 +165,7 @@ def _gui_human_actions(env: FlammeRougeEnv):
                     hand_cards = env.current_player.s_hand
                 for c in hand_cards.cards:
                     #TODO : change color button to red for penalty card
-                    with ui.button(on_click=lambda c=c: _on_card_selected(c,env)).classes("text-h4 q-px-md"):
+                    with ui.button(on_click=lambda c=c: _on_card_selected(c,env,callback)).classes("text-h4 q-px-md"):
                         with ui.column():
                             ui.label(f"{c.value}").classes("text-h4 q-px-lg")
                             if env.current_player.hand_order[env.hand_number] == 'r':
@@ -175,34 +174,23 @@ def _gui_human_actions(env: FlammeRougeEnv):
                                 _element_sprinteur(_get_player_color(env.current_player_num+1)).style("width: 100%;")
     
 
-def render_web(env: FlammeRougeEnv):
-
-    if env._web_thread == None:
-
-        env._web_thread = UiThread(env)
-        env._web_thread.start()
+def render_web(env: FlammeRougeEnv, callback):
+    global FIRST_START
+    if FIRST_START:
+        with ui.row().classes("bg-green-1 q-py-md").style("width: 100%;"):
+            _gui_board(env, callback)
+        with ui.row():
+            ui.label("").bind_text_from(env, "turns_taken", backward=lambda x: f"Turn : {x}")
+            ui.label("").bind_text_from(env, "phase", backward=lambda x: "Rider placement" if x == 0 else "Deck choice" if x == 1 else "Card choice")
+        _gui_players(env)
+        _gui_human_actions(env, callback)
+        FIRST_START = False
+        ui.run(reload=False)
     else:
-        _gui_board.refresh(env)
-        _gui_human_actions.refresh(env)
+        _gui_board.refresh(env, callback)
+        _gui_human_actions.refresh(env, callback)
         _gui_players.refresh(env)
 
-class UiThread(threading.Thread):
-    def __init__(self, env):
-        super().__init__()
-        self.daemon = True
-        self.env = env
-    
-    def run(self):
-
-        with ui.row().classes("bg-green-1 q-py-md").style("width: 100%;"):
-            _gui_board(self.env)
-        with ui.row():
-            ui.label("").bind_text_from(self.env, "turns_taken", backward=lambda x: f"Turn : {x}")
-            ui.label("").bind_text_from(self.env, "phase", backward=lambda x: "Rider placement" if x == 0 else "Deck choice" if x == 1 else "Card choice")
-        _gui_players(self.env)
-        _gui_human_actions(self.env)
-        ui.run(reload=False)
-    
 @ui.refreshable
 def _element_rouleur(color: str):
     content = f'''
