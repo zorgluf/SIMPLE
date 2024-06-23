@@ -37,6 +37,7 @@ def play_step(env, human_action = None):
 
     obs, reward, done, _ , _ = env.step(action)
   
+  env.render(callback=lambda a: play_step(env, a))
   env.close()
 
 def main(args):
