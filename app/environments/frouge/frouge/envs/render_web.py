@@ -147,7 +147,7 @@ def _gui_players(env: FlammeRougeEnv):
 
 @ui.refreshable
 def _gui_human_actions(env: FlammeRougeEnv, callback):
-    with ui.row().bind_visibility_from(env, '_interactive_action_on'):
+    with ui.row().bind_visibility_from(env, 'done', backward=lambda x: not x):
         with ui.column():
             ui.label("").bind_text_from(env,"current_player_num",backward=lambda x: f"Human player {x+1} turn")
             ui.label("").bind_visibility_from(env,"phase",backward=lambda x: x == 0).bind_text_from(env.current_player.s_position,"col",backward=lambda x:  "Place your Sprinteur (click on a starting cell)" if x == -1 else "Place your Rouleur (click on a starting cell)")
@@ -184,6 +184,7 @@ def render_web(env: FlammeRougeEnv, callback):
             ui.label("").bind_text_from(env, "phase", backward=lambda x: "Rider placement" if x == 0 else "Deck choice" if x == 1 else "Card choice")
         _gui_players(env)
         _gui_human_actions(env, callback)
+        ui.button("Finish game.", on_click=lambda: callback(-1)).bind_visibility_from(env, "done")
         FIRST_START = False
         ui.run(reload=False)
     else:
