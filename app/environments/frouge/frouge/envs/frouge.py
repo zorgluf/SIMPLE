@@ -150,14 +150,14 @@ class FlammeRougeEnv(gym.Env):
         #get penalty cards number
         penalties = [ - p.nb_penalties()*2 for p in self.board.players ]
 
-        scores = [ sum(x) for x in zip(positions, spent, penalties) ]
+        scores = [ sum(x)/1000 for x in zip(positions, spent, penalties) ]
 
         #is the winner ?
         if self.done:
             #get the most advanced user
             pos = [ max((p.r_position.col*3-p.r_position.row),(p.s_position.col*3-p.s_position.row)) for p in self.board.players]
             #give reward for winner
-            scores[np.argmax(pos)] = 1000
+            scores[np.argmax(pos)] = 1
 
         logger.info(f"Rewards: {scores}")
         return scores

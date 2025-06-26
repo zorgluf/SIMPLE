@@ -13,6 +13,7 @@ from utils.agents import Agent
 
 import config
 import numpy as np
+from time import sleep
 
 
 def main(args):
@@ -83,7 +84,10 @@ def main(args):
     while not done:
 
       current_player = players[env.current_player_num]
-      env.render()
+      
+      if args.render_ai or (current_player.name == "human"):
+        env.render()
+        sleep(args.wait)
       logger.debug(f'\nCurrent player name: {current_player.name}')
 
       if args.recommend and current_player.name in ['human', 'rules']:
@@ -114,11 +118,9 @@ def main(args):
       for r, player in zip(reward, players):
         total_rewards[player.id] += r
         player.points += r
-
-      if args.cont:
-        input('Press any key to continue')
     
     env.render()
+
 
     logger.info(f"Played {game + 1} games: {total_rewards}")
 
@@ -158,8 +160,10 @@ def cli() -> None:
             , help="Randomise the player order")
   parser.add_argument("--recommend", "-re",  action = 'store_true', default = False
             , help="Make recommendations on humans turns")
-  parser.add_argument("--cont", "-c",  action = 'store_true', default = False
-            , help="Pause after each turn to wait for user to continue")
+  parser.add_argument("--wait", "-wa",  type = int, default = 1
+            , help="Wait time between turns.")
+  parser.add_argument("--render_ai", "-ra",  action= "store_true", default = False
+            , help="Whether to render ai turn or not.")
   parser.add_argument("--env_name", "-e",  type = str, default = 'TicTacToe'
             , help="Which game to play?")
   parser.add_argument("--write_results", "-w",  action = 'store_true', default = False
